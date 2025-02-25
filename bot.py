@@ -79,7 +79,14 @@ async def markreceived(ctx, member: discord.Member, item_name: str):
 async def ping(ctx):
     await ctx.send("Pong! 🏓")
 
-
+# Carregar as variáveis do .env
 load_dotenv()
+
+# Obter o token
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+
+if DISCORD_TOKEN is None:
+    raise ValueError("🚨 ERRO: O token do Discord não foi encontrado! Verifique seu arquivo .env.")
+
+
 bot.run(DISCORD_TOKEN)
