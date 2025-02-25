@@ -1,4 +1,4 @@
-# Discord Item Bot
+# Boss Drop Manager
 
 Um bot para Discord que permite aos membros escolher itens (armas e armaduras) com base nos seus cargos e gerencia a distribuição de forma justa.
 
