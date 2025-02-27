@@ -3,7 +3,6 @@ import os
 from discord.ext import commands
 from dotenv import load_dotenv
 
-
 intents = discord.Intents.all()
 intents.reactions = True
 intents.guilds = True
@@ -20,9 +19,11 @@ queues = {}  # Fila de distribuição para cada item
 async def on_ready():
     print(f'Bot conectado como {bot.user}')
 
-
 @bot.command()
-async def additem(ctx, channel: discord.TextChannel, name: str, description: str, image_url: str, category: str):
+async def additem(ctx, channel: discord.TextChannel, name: str, description: str, image_url: str, *category: str):
+
+    category_list = list(category)  # Converte a tupla de argumentos em uma lista
+
     """Adiciona um novo item e posta a mensagem no canal especificado."""
     embed = discord.Embed(title=name, description=description, color=discord.Color.blue())
     embed.set_image(url=image_url)
@@ -33,7 +34,7 @@ async def additem(ctx, channel: discord.TextChannel, name: str, description: str
 
     items[message.id] = {
         "name": name,
-        "category": category,
+        "category": category_list,
         "queue": []  # Lista de espera para o item
     }
 
@@ -60,8 +61,25 @@ async def on_reaction_add(reaction, user):
             else:
                 await user.send('Você já está na fila para esse item.')
         else:
-            await user.send('Você não pode escolher este item, pois não tem o cargo correspondente!')
+            await user.send(f'Você não pode escolher este item ({item["name"]}), pois não usa a arma correspondente ou sua classe não usa esse item!')
             await reaction.message.remove_reaction(reaction.emoji, user)
+            await reaction.remove(user)  # 🔥 Remove a reação automaticamente TEM QUE VER QUAL DAS DUAS FUNCIONA
+
+
+@bot.event
+async def on_reaction_remove(reaction, user):
+    """Remove o membro da fila caso ele retire a reação."""
+    if user.bot:
+        return
+
+    message_id = reaction.message.id
+    if message_id in items:
+        item = items[message_id]
+        member = reaction.message.guild.get_member(user.id)
+
+        if user.id in item["queue"]:
+            item["queue"].remove(user.id)
+            await user.send(f'Você foi removido da fila para {item["name"]}.')
 
 
 @bot.command()
