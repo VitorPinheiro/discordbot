@@ -41,11 +41,11 @@ async def on_ready():
         if message.type == discord.MessageType.pins_add:
             continue  # Ignora a mensagem e passa para a próxima
 
-        print("message")
-        print(message)
+        #print("message")
+        #print(message)
         parts = message.content.split(" | ")
-        print("parts")
-        print(parts)
+        #print("parts")
+        #print(parts)
 
         message_id = int(parts[0])
         name = parts[1]
@@ -57,8 +57,8 @@ async def on_ready():
             "categories": categories,
             "queue": queue
         }
-        print(f'items[{message_id}]')
-        print(items[message_id])
+        #print(f'items[{message_id}]')
+        #print(items[message_id])
 
     print("Dados restaurados com sucesso!")
     await check_reactions()  # Verifica se há reações erradas
@@ -97,56 +97,49 @@ async def additem(ctx, channel: discord.TextChannel, name: str, description: str
 
 @bot.event
 async def on_reaction_add(reaction, user):
-    """Adiciona o membro à fila se ele tiver o cargo correto."""
+    """Adiciona o membro à fila se ele tiver o cargo correto e atualiza a persistência."""
     if user.bot:
         return
 
-    print(f"ONN_REACTION_ADD! User **{user.name} -> {reaction.emoji}**")
+    print(f"🟢 REAÇÃO ADICIONADA: {user.name} -> {reaction.emoji}")
 
     message_id = reaction.message.id
     if message_id in items:
         item = items[message_id]
         member = reaction.message.guild.get_member(user.id)
 
-        print(f"Roles do membro {user}:")
-        print(member.roles)
+        if not member:
+            return
 
-        # Verifica se o membro tem um dos roles necessários
-        allowed_roles = [role.name for role in member.roles]
-
-        print(f"Roles permitidas para o item {item}:")
-        print(allowed_roles)
-
+        # Verifica se o usuário tem uma das roles necessárias
         if any(role.name in item["category"] for role in member.roles):
             if user.id not in item["queue"]:
                 item["queue"].append(user.id)
-                await user.send(f'Você entrou na fila para {item["name"]}!')
-            else:
-                await user.send('Você já está na fila para esse item.')
+                await user.send(f'✅ Você entrou na fila para {item["name"]}!')
         else:
-            await user.send(f'Você não pode escolher este item ({item["name"]}), pois não usa a arma correspondente ou sua classe não usa esse item!')
+            await user.send(f'❌ Você não pode escolher este item ({item["name"]}), pois não tem a role necessária!')
             await reaction.message.remove_reaction(reaction.emoji, user)
-            await reaction.remove(user)  # 🔥 Remove a reação automaticamente TEM QUE VER QUAL DAS DUAS FUNCIONA
+            return  # Retorna aqui para não atualizar o canal se for reação inválida
 
-        print(f'O item {item} foi atualizado em memoria com sucesso!')
+        # Atualizar os dados no canal de persistência
+        log_channel = discord.utils.get(reaction.message.guild.text_channels, name=canal_persistencia_bot)
+        if log_channel:
+            async for msg in log_channel.history(limit=100):  # Procura a mensagem do item salvo
+                if msg.content.startswith(f"{message_id} |"):
+                    fila_str = ', '.join([str(uid) for uid in item["queue"]])
+                    novo_conteudo = f"{message_id} | {item['name']} | {', '.join(item['category'])} | [{fila_str}]"
+                    await msg.edit(content=novo_conteudo)  # Atualiza a mensagem com a nova fila
+                    break
+        print(f"✅ Mensagem do item {item['name']} atualizada no {canal_persistencia_bot}")
 
-    # Atualizar os dados no canal de persistência
-    log_channel = discord.utils.get(reaction.message.guild.text_channels, name=canal_persistencia_bot)
-    if log_channel:
-        async for msg in log_channel.history(limit=100):  # Procura a mensagem do item salvo
-            if msg.content.startswith(f"{message_id} |"):
-                fila_str = ', '.join([str(uid) for uid in item["queue"]])
-                novo_conteudo = f"{message_id} | {item['name']} | {', '.join(item['category'])} | [{fila_str}]"
-                await msg.edit(content=novo_conteudo)  # Atualiza a mensagem com a nova fila
-                break
-        print(f'A mensagem {msg} com o ID {message_id} foi autalizada.')
-        print(f'O item {item} foi persistido com sucesso no canal {canal_persistencia_bot}!')
 
 @bot.event
 async def on_reaction_remove(reaction, user):
-    """Remove o membro da fila caso ele retire a reação."""
+    """Remove o membro da fila caso ele retire a reação e atualiza a persistência."""
     if user.bot:
         return
+
+    print(f"🟡 REAÇÃO REMOVIDA: {user.name} -> {reaction.emoji}")
 
     message_id = reaction.message.id
     if message_id in items:
@@ -155,7 +148,18 @@ async def on_reaction_remove(reaction, user):
 
         if user.id in item["queue"]:
             item["queue"].remove(user.id)
-            await user.send(f'Você foi removido da fila para {item["name"]}.')
+            await user.send(f'⚠️ Você foi removido da fila para {item["name"]}.')
+
+        # Atualizar os dados no canal de persistência
+        log_channel = discord.utils.get(reaction.message.guild.text_channels, name=canal_persistencia_bot)
+        if log_channel:
+            async for msg in log_channel.history(limit=100):  # Procura a mensagem do item salvo
+                if msg.content.startswith(f"{message_id} |"):
+                    fila_str = ', '.join([str(uid) for uid in item["queue"]])
+                    novo_conteudo = f"{message_id} | {item['name']} | {', '.join(item['category'])} | [{fila_str}]"
+                    await msg.edit(content=novo_conteudo)  # Atualiza a mensagem com a nova fila
+                    break
+        print(f"✅ Mensagem do item {item['name']} atualizada no {canal_persistencia_bot}")
 
 
 @bot.command()
@@ -313,7 +317,7 @@ async def check_reactions():
 async def check_reactions_old():
     """Verifica se há reações inválidas e as remove."""
     for message_id, item in items.items():
-        channel = discord.utils.get(bot.get_all_channels(), name="boss-drops")  # Canal onde os itens estão
+        channel = discord.utils.get(bot.get_all_channels(), name=canal_boss_drops)  # Canal onde os itens estão
         if not channel:
             continue
 
@@ -368,7 +372,6 @@ async def monitor_old_messages():
                                     await user.send(f'🔔 Você foi adicionado à fila para {item["name"]}!')
                                 except discord.Forbidden:
                                     print(f"❌ Não consegui enviar mensagem para {user}.")
-
                         else:  # Se não tem a role necessária, remove a reação
                             await message.remove_reaction(reaction.emoji, user)
                             try:
@@ -376,11 +379,12 @@ async def monitor_old_messages():
                             except discord.Forbidden:
                                 print(f"❌ Não consegui enviar mensagem para {user}.")
 
-        await asyncio.sleep(10)  # Aguarda 30 segundos antes de checar novamente
+        await asyncio.sleep(10)  # Aguarda 10 segundos antes de checar novamente
+
 
 
 async def re_register_reactions():
-    """Re-registra as mensagens dos itens carregados para garantir que reações sejam monitoradas."""
+    """Verifica mensagens antigas, adiciona usuários na fila e remove quem retirou a reação enquanto o bot estava offline."""
     await bot.wait_until_ready()
     guild = bot.guilds[0]  # Ajuste se necessário
     drops_channel = discord.utils.get(guild.text_channels, name=canal_boss_drops)
@@ -389,10 +393,20 @@ async def re_register_reactions():
         print("🚨 Canal de drops não encontrado!")
         return
 
-    print("🔄 Re-registrando mensagens antigas para monitorar reações...")
+    log_channel = discord.utils.get(guild.text_channels, name=canal_persistencia_bot)
+    if not log_channel:
+        print("🚨 Canal de persistência não encontrado!")
+        return
+
+    print("🔄 Re-registrando mensagens antigas e monitorando reações...")
 
     async for message in drops_channel.history(limit=100):
+        print("message.id:", message.id)
+        print("items:", items)
         if message.id in items:
+            item = items[message.id]
+            reacted_users = set()  # IDs de usuários que ainda têm a reação
+            print("cheguei akiiiii 3")
             for reaction in message.reactions:
                 async for user in reaction.users():
                     if user.bot:
@@ -402,16 +416,67 @@ async def re_register_reactions():
                     if not member:
                         continue  # Usuário não encontrado
 
-                    # Verifica se o usuário tem a role necessária para o item
-                    if any(role.name in items[message.id]["category"] for role in member.roles):
-                        if user.id not in items[message.id]["queue"]:
-                            items[message.id]["queue"].append(user.id)
-                            await user.send(f'🔔 Você foi adicionado à fila para {items[message.id]["name"]}!')
-                    else:
-                        await message.remove_reaction(reaction.emoji, user)
-                        await user.send(f'🚫 Você não pode escolher este item ({items[message.id]["name"]}), pois não tem a role necessária!')
+                    # 🔥 Se o usuário tem a role necessária, ele pode entrar na fila
+                    if any(role.name in item["category"] for role in member.roles):
+                        reacted_users.add(user.id)
 
-    print("✅ Mensagens antigas re-registradas para monitoramento!")
+                        # 🔹 Se o usuário reagiu e não estava na fila, adicionamos ele corretamente
+                        if user.id not in item["queue"]:
+                            item["queue"].append(user.id)
+                            try:
+                                await user.send(f'✅ Você foi adicionado à fila para {item["name"]}!')
+                            except discord.Forbidden:
+                                print(f"⚠️ Não foi possível enviar DM para {user}")
+
+                    else:
+                        # 🔥 Remove reações inválidas
+                        await message.remove_reaction(reaction.emoji, user)
+                        try:
+                            await user.send(f'🚫 Você não pode escolher este item ({item["name"]}), pois não tem a role necessária!')
+                        except discord.Forbidden:
+                            print(f"⚠️ Não foi possível enviar DM para {user}")
+
+            print(f"FILA do item {item}:")
+            print(f'{item["queue"]}')
+            print("REACTED USERS:")
+            print(f'{reacted_users}')
+
+            # 🔥 Detecta remoção de reação enquanto o bot estava offline
+            users_to_remove = [uid for uid in item["queue"] if uid not in reacted_users]
+            print("cheguei akiiiii 2: ", users_to_remove)
+            if users_to_remove:
+                for user_id in users_to_remove:
+                    item["queue"].remove(user_id)
+                    member = guild.get_member(user_id)
+                    if member:
+                        try:
+                            await member.send(f'⚠️ Você foi removido da fila para {item["name"]} porque retirou a reação enquanto o bot estava offline.')
+                        except discord.Forbidden:
+                            print(f"⚠️ Não foi possível enviar DM para {member}")
+
+            # 🔄 Atualizar os dados no canal de persistência corretamente
+            print(f"🔄 Atualizando canal de persistência para {item['name']}...")
+            message_found = False  # Flag para verificar se encontramos a mensagem
+
+            print("cheguei akiiiii")
+            async for msg in log_channel.history(limit=100):
+                msg_parts = msg.content.split(" | ")
+                print('To no canal de persistencia pra atualizar!')
+                print(msg_parts)
+                #print("ITEM:")
+                #print(item)
+                if len(msg_parts) >= 4 and msg_parts[0] == str(message.id):
+                    message_found = True
+                    fila_str = ', '.join([str(uid) for uid in item["queue"]])
+                    novo_conteudo = f"{message.id} | {item['name']} | {', '.join(item['category'])} | [{fila_str}]"
+                    await msg.edit(content=novo_conteudo)  # Atualiza a mensagem com a nova fila
+                    print(f"✅ Mensagem do item {item['name']} foi atualizada no {canal_persistencia_bot}")
+                    break  # Sai do loop assim que encontra a mensagem correta
+
+            if not message_found:
+                print(f"⚠️ Nenhuma mensagem correspondente encontrada para {item['name']} no {canal_persistencia_bot}!")
+
+    print("✅ Mensagens verificadas, usuários adicionados à fila e persistência atualizada!")
 
 
 @bot.event
@@ -419,6 +484,7 @@ async def setup_hook():
     bot.loop.create_task(load_data_on_startup())
     bot.loop.create_task(monitor_old_messages())
     bot.loop.create_task(re_register_reactions())
+
 
 
 bot.run(DISCORD_TOKEN)
