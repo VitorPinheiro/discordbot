@@ -1,6 +1,8 @@
 import discord
 import os
 import logging
+import json
+import asyncio
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -336,7 +338,7 @@ async def check_reactions_old():
             print(f"Mensagem {message_id} não encontrada.")
 
 
-import asyncio
+
 
 async def monitor_old_messages():
     """Verifica periodicamente as mensagens do canal de drops para monitorar reações."""
@@ -478,6 +480,53 @@ async def re_register_reactions():
 
     print("✅ Mensagens verificadas, usuários adicionados à fila e persistência atualizada!")
 
+
+@bot.command()
+async def load_all_items(ctx, channel: discord.TextChannel):
+    """Carrega todos os itens do arquivo JSON e os adiciona ao canal especificado."""
+    try:
+        with open("items.json", "r", encoding="utf-8") as file:
+            items_list = json.load(file)
+
+        if not items_list:
+            await ctx.send("❌ Nenhum item encontrado no arquivo `items.json`.")
+            return
+
+        for item in items_list:
+            name = item["name"]
+            description = item["description"]
+            image_url = item["image_url"]
+            categories = item["categories"]
+
+            # Criar embed para o item
+            embed = discord.Embed(title=name, description=description, color=discord.Color.blue())
+            embed.set_image(url=image_url)
+            embed.set_footer(text=f'Categorias: {", ".join(categories)}')
+
+            # Enviar mensagem no canal do Discord
+            message = await channel.send(embed=embed)
+            await message.add_reaction("✅")  # Adiciona reação para escolha do item
+
+            # Salvar no canal de persistência
+            log_channel = discord.utils.get(ctx.guild.text_channels, name=canal_persistencia_bot)
+            if log_channel:
+                save_message = await log_channel.send(f"{message.id} | {name} | {', '.join(categories)} | []")
+                await save_message.pin()  # Fixa a mensagem para facilitar a recuperação
+
+            # Adicionar item ao dicionário de controle do bot
+            items[message.id] = {
+                "name": name,
+                "category": categories,
+                "queue": []
+            }
+
+            print(f"✅ Item {name} adicionado ao canal {channel.name}!")
+
+        await ctx.send(f"✅ Todos os itens foram carregados e adicionados ao canal {channel.mention}!")
+
+    except Exception as e:
+        await ctx.send(f"❌ Erro ao carregar itens: {str(e)}")
+        print(f"Erro ao carregar JSON: {str(e)}")
 
 @bot.event
 async def setup_hook():

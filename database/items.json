@@ -1,0 +1,20 @@
+[
+    {
+        "name": "Adentus's Gargantuan Greatsword",
+        "description": "Greatsword Weapon.",
+        "image_url": "https://gameslantern.com/storage/sites/throne-and-liberty/armor/IT_P_Sword2h_00028.png",
+        "categories": ["Espadão"]
+    },
+    {
+        "name": "Excavator's Mysterious Scepter",
+        "description": "Wand & Tome Weapon.",
+        "image_url": "https://gameslantern.com/storage/sites/throne-and-liberty/armor/IT_P_Wand_00012.png",
+        "categories": ["Varinha"]
+    },
+    {
+        "name": "Blessed Templar Cloak",
+        "description": "Cloak Armor.",
+        "image_url": "https://gameslantern.com/storage/sites/throne-and-liberty/armor/P_M_CA_00019.png",
+        "categories": ["Healer", "Tank"]
+    }
+]
