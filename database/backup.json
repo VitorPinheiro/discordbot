@@ -1,0 +1,28 @@
+{
+    "1345641506056306690": {
+        "name": "Adentus's Gargantuan Greatsword",
+        "category": [
+            "Espadão"
+        ],
+        "queue": []
+    },
+    "1345641509130866689": {
+        "name": "Excavator's Mysterious Scepter",
+        "category": [
+            "Varinha"
+        ],
+        "queue": [
+            356887944960933888
+        ]
+    },
+    "1345641512133726260": {
+        "name": "Blessed Templar Cloak",
+        "category": [
+            "Healer",
+            "Tank"
+        ],
+        "queue": [
+            356887944960933888
+        ]
+    }
+}

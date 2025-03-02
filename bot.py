@@ -13,6 +13,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Arquivo de persistência para backup
+BACKUP_FILE = "database/backup.json"
+
 # Falta adicionar uma persistencia para items e queues.
 items = {}  # Dicionário para armazenar os itens
 queues = {}  # Fila de distribuição para cada item
@@ -23,6 +26,8 @@ logger = logging.getLogger(__name__)
 # Canal do discord que terá os dados para serem carregados.
 canal_persistencia_bot = "bot-data"
 canal_boss_drops = "🤝boss-drops"
+
+
 
 @bot.event
 async def on_ready():
@@ -43,11 +48,7 @@ async def on_ready():
         if message.type == discord.MessageType.pins_add:
             continue  # Ignora a mensagem e passa para a próxima
 
-        #print("message")
-        #print(message)
         parts = message.content.split(" | ")
-        #print("parts")
-        #print(parts)
 
         message_id = int(parts[0])
         name = parts[1]
@@ -162,6 +163,7 @@ async def on_reaction_remove(reaction, user):
                     await msg.edit(content=novo_conteudo)  # Atualiza a mensagem com a nova fila
                     break
         print(f"✅ Mensagem do item {item['name']} atualizada no {canal_persistencia_bot}")
+
 
 
 @bot.command()
@@ -315,31 +317,6 @@ async def check_reactions():
 
     print("✅ Reações antigas verificadas e filas atualizadas!")
 
-
-async def check_reactions_old():
-    """Verifica se há reações inválidas e as remove."""
-    for message_id, item in items.items():
-        channel = discord.utils.get(bot.get_all_channels(), name=canal_boss_drops)  # Canal onde os itens estão
-        if not channel:
-            continue
-
-        try:
-            message = await channel.fetch_message(message_id)
-            for reaction in message.reactions:
-                async for user in reaction.users():
-                    if user.bot:
-                        continue
-
-                    member = message.guild.get_member(user.id)
-                    if not any(role.name in item["categories"] for role in member.roles):
-                        await message.remove_reaction(reaction.emoji, user)
-                        print(f"Removida reação inválida de {user.name} no item {item['name']}")
-        except discord.NotFound:
-            print(f"Mensagem {message_id} não encontrada.")
-
-
-
-
 async def monitor_old_messages():
     """Verifica periodicamente as mensagens do canal de drops para monitorar reações."""
     await bot.wait_until_ready()  # Espera o bot estar pronto
@@ -408,7 +385,6 @@ async def re_register_reactions():
         if message.id in items:
             item = items[message.id]
             reacted_users = set()  # IDs de usuários que ainda têm a reação
-            print("cheguei akiiiii 3")
             for reaction in message.reactions:
                 async for user in reaction.users():
                     if user.bot:
@@ -484,8 +460,15 @@ async def re_register_reactions():
 @bot.command()
 async def load_all_items(ctx, channel: discord.TextChannel):
     """Carrega todos os itens do arquivo JSON e os adiciona ao canal especificado."""
+    file_path = "database/items.json"
+
+    # 🔥 Verifica se o arquivo existe antes de tentar abrir
+    if not os.path.exists(file_path):
+        await ctx.send("❌ Arquivo `items.json` não encontrado! Certifique-se de que ele está na mesma pasta database.")
+        return
+
     try:
-        with open("items.json", "r", encoding="utf-8") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             items_list = json.load(file)
 
         if not items_list:
@@ -531,7 +514,7 @@ async def load_all_items(ctx, channel: discord.TextChannel):
 @bot.event
 async def setup_hook():
     bot.loop.create_task(load_data_on_startup())
-    bot.loop.create_task(monitor_old_messages())
+    #bot.loop.create_task(monitor_old_messages())
     bot.loop.create_task(re_register_reactions())
 
 
