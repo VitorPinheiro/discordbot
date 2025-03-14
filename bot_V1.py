@@ -64,7 +64,7 @@ async def on_ready():
     """Carrega os dados do backup e verifica reações antigas."""
     print(f'Bot conectado como {bot.user}')
     carregar_backup()
-    await check_reactions()  # Verifica se há reações inválidas
+    await check_reactions(None)  # Verifica se há reações inválidas
     logger.info('on_ready: Finished')
 
 
@@ -168,7 +168,8 @@ async def markreceived(ctx, member: discord.Member, item_name: str):
 
 
 # 📌 Função para verificar reações antigas ao iniciar
-async def check_reactions():
+@bot.command()
+async def check_reactions(ctx):
     """Verifica se há reações inválidas no canal de drops e atualiza as filas."""
     await bot.wait_until_ready()
     guild = bot.guilds[0]
@@ -219,7 +220,7 @@ async def check_reactions():
 # 📌 Evento para iniciar o bot
 @bot.event
 async def setup_hook():
-    bot.loop.create_task(check_reactions())
+    bot.loop.create_task(check_reactions(None))
 
 
 # Carregar variáveis do .env
