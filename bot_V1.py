@@ -199,6 +199,7 @@ async def check_reactions():
                             item["queue"].append(user.id)
                     else:
                         await message.remove_reaction(reaction.emoji, user)
+                        await member.send(f'❌ Você não pode escolher este item ({item["name"]}), pois não tem a role necessária!')
 
             users_to_remove = [uid for uid in item["queue"] if uid not in reacted_users]
             for user_id in users_to_remove:
